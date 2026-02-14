@@ -73,5 +73,58 @@ public class OpenAiService {
         }
     }
 
+
+    public String generateFollowUpAnswer(String rawCsv, String summary, String question) {
+
+        String prompt = """
+    You are a data analyst.
+
+    Dataset:
+    """ + rawCsv + """
+
+    Previous Insights:
+    """ + summary + """
+
+    User Question:
+    """ + question + """
+
+    Give a clear and direct answer in plain text.
+    Do NOT return JSON.
+    Do NOT use markdown.
+    Just return a simple explanation.
+    """;
+
+        Map<String, Object> requestBody = Map.of(
+                "model", "gpt-4o-mini",
+                "messages", new Object[]{
+                        Map.of("role", "user", "content", prompt)
+                }
+        );
+
+        String response = webClient.post()
+                .header("Authorization", "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response);
+
+            return root
+                    .get("choices")
+                    .get(0)
+                    .get("message")
+                    .get("content")
+                    .asText();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse follow-up response", e);
+        }
+    }
+
+
 }
 
